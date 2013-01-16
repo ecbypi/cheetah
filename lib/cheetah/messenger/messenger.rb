@@ -1,6 +1,5 @@
-require 'net/http'
-require 'net/https'
-require 'uri'
+require 'curb'
+require 'cgi'
 
 module Cheetah
   class Messenger
@@ -29,8 +28,8 @@ module Cheetah
         login unless @cookie
         initheader = {'Cookie' => @cookie || ''}
         message.params['aid'] = @options[:aid]
-        resp = do_post(message.path, message.params, initheader)
-      rescue CheetahAuthorizationException => e
+        do_post(message.path, message.params, initheader)
+      rescue CheetahAuthorizationException
         # it may be that the cookie is stale. clear it and immediately retry. 
         # if it hits another authorization exception in the login function then it will come back as a permanent exception
         @cookie = nil
@@ -42,34 +41,62 @@ module Cheetah
 
     # actually sends the request and raises any exceptions
     def do_post(path, params, initheader = nil)
-      http              = Net::HTTP.new(@options[:host], 443)
-      http.read_timeout = 5
-      http.use_ssl      = true
-      http.verify_mode  = OpenSSL::SSL::VERIFY_PEER
-      data              = params.to_a.map { |a| "#{a[0]}=#{a[1]}" }.join("&")
-      resp              = http.post(path, data, initheader)
+      data              = params.map { |a| "#{a[0]}=#{CGI.escape(a[1])}" }
 
-      raise CheetahTemporaryException,     "failure:'#{path}?#{data}', HTTP error: #{resp.code}"            if resp.code =~ /5../
-      raise CheetahPermanentException,     "failure:'#{path}?#{data}', HTTP error: #{resp.code}"            if resp.code =~ /[^2]../
-      raise CheetahAuthorizationException, "failure:'#{path}?#{data}', Cheetah error: #{resp.body.strip}"   if resp.body =~ /^err:auth/
-      raise CheetahTemporaryException,     "failure:'#{path}?#{data}', Cheetah error: #{resp.body.strip}"   if resp.body =~ /^err:internal error/
-      raise CheetahPermanentException,     "failure:'#{path}?#{data}', Cheetah error: #{resp.body.strip}"   if resp.body =~ /^err/
-                                                                                                            
-      resp                                                                                                  
+      http = Curl::Easy.new("https://#{@options[:host]}#{path}")
+      http.ssl_verify_peer = false
+      http.connect_timeout = 5
+
+      http.http_post(data)
+
+      response_code = http.response_code.to_s
+      response_body = http.body_str
+
+      case response_code
+      when /5../
+        raise CheetahTemporaryException, "failure:'#{path}?#{data}', HTTP error: #{response_code}"
+      when /[^2]../
+        raise CheetahPermanentException, "failure:'#{path}?#{data}', HTTP error: #{response_code}"
+      end
+
+      case response_body
+      when /^err:auth/
+        raise CheetahAuthorizationException, "failure:'#{path}?#{data}', Cheetah error: #{response_body.strip}"
+      when /^err:internal error/
+        raise CheetahTemporaryException, "failure:'#{path}?#{data}', Cheetah error: #{response_body.strip}"
+      when /^err/
+        raise CheetahPermanentException, "failure:'#{path}?#{data}', Cheetah error: #{response_body.strip}"
+      end
+
+      http
     end
 
     # sets the instance @cookie variable
     def login
       begin
-        log_msg = "(re)logging in-----------"
         path = "/api/login1"
         params              = {}
         params['name']      = @options[:username]
         params['cleartext'] = @options[:password]
-        @cookie = do_post(path, params)['set-cookie']
-      rescue CheetahAuthorizationException => e
-        raise CheetahPermanentException, "authorization exception while logging in" # this is a permanent exception, it should not be retried
+        http = do_post(path, params)
+
+        @cookie = extract_auth_cookie(http.header_str)
+      rescue CheetahAuthorizationException
+        # this is a permanent exception, it should not be retried
+        raise CheetahPermanentException, "authorization exception while logging in"
       end
+    end
+
+    private
+
+    def extract_auth_cookie(header_str)
+      headers = header_str.split(/\r\n/)
+      # Remove line containing status
+      headers.delete_at(0)
+
+      headers = Hash[headers.map { |header| header.split(/: /) }]
+
+      headers['set-cookie'] || headers['Set-Cookie']
     end
 
   end

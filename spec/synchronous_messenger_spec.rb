@@ -11,42 +11,53 @@ describe Cheetah::SynchronousMessenger do
       :enable_tracking  => false,
     }
     @messenger = Cheetah::SynchronousMessenger.new(@options)
-    stub_http
+  end
+
+  context 'logging in' do
+    it 'sets the session cookie' do
+      messenger = Cheetah::SynchronousMessenger.new(@options)
+      message = Message.new('/', {})
+
+      stub_login
+      stub_request(:post, 'https://foo.com/').to_return(status: 200, body: 'OK\r\n')
+
+      messenger.do_send(message)
+
+      messenger.instance_variable_get(:@cookie).should_not be_nil
+    end
+
+    it 'raises error in the event of an authentication failure' do
+      messenger = Cheetah::SynchronousMessenger.new(@options)
+      message = Message.new('/', {})
+
+      stub_request(:post, 'https://foo.com/api/login1').with(body: { name: 'foo_user', cleartext: 'foo' }).to_return(body: "err:authentication error\r\n", status: 200)
+
+      lambda { messenger.do_send(message) }.should raise_error(CheetahPermanentException)
+    end
   end
 
   context "#do_send" do
     before do
       @message   = Message.new("/",{})
-      @resp      = mock(:resp).as_null_object
-      @http      = mock(:http).as_null_object
-      @http.stub(:post).and_return(@resp)
-      Net::HTTP.stub(:new).and_return(@http)
-    end
 
-    it "should send a http post" do
-      @http.should_receive(:post)
-      @messenger.do_send(@message)
-    end
-
-    it "should raise CheetahPermanentException when there's an authorization problem" do
-      @resp.stub(:code).and_return('200')
-      @resp.stub(:body).and_return('err:auth')
-      lambda { @messenger.do_send(@message) }.should raise_error(CheetahPermanentException)
+      stub_login
     end
 
     it "should raise CheetahPermanentException when there's a permanent error on Cheetah's end" do
-      @resp.stub(:code).and_return('400')
+      stub_request(:post, 'https://foo.com/').to_return(status: 400)
+
       lambda { @messenger.do_send(@message) }.should raise_error(CheetahPermanentException)
     end
 
     it "should raise CheetahTemporaryException when there's a temporary (server) error on Cheetah's end" do
-      @resp.stub(:code).and_return('500')
+      stub_request(:post, 'https://foo.com/').to_return(status: 500)
+
       lambda { @messenger.do_send(@message) }.should raise_error(CheetahTemporaryException)
     end
 
     it "should raise CheetahTemporaryException when there's a temporary error on Cheetah's end" do
-      @resp.stub(:code).and_return('200')
-      @resp.stub(:body).and_return('err:internal error')
+      stub_request(:post, 'https://foo.com/').to_return(status: 200, body: 'err:internal error')
+
       lambda { @messenger.do_send(@message) }.should raise_error(CheetahTemporaryException)
     end
   end
@@ -55,6 +66,9 @@ describe Cheetah::SynchronousMessenger do
     before do
       @params = {'email' => 'foo@test.com'}
       @message = Message.new('/', @params)
+
+      stub_login
+      stub_request(:post, 'https://foo.com/').with(body: 'email=foo%40test.com').to_return(status: 200, body: "OK\r\n")
     end
 
     it 'should send' do
