@@ -34,6 +34,21 @@ describe Cheetah::SynchronousMessenger do
 
       lambda { messenger.do_send(message) }.should raise_error(CheetahPermanentException)
     end
+
+    it 'sends cookie on subsequent requests' do
+      messenger = Cheetah::SynchronousMessenger.new(@options)
+      message = Message.new('/', {})
+
+      stub_login
+      messenger.send(:login)
+
+      # Webmock will raise an error if we attempt to make a request that isn't
+      # stubbed. The test will only pass if we stub the request that will be
+      # made.
+      stub_request(:post, 'https://foo.com/').with(body: 'aid=123', headers: { 'Cookie' => 'token' })
+
+      messenger.do_send(message)
+    end
   end
 
   context "#do_send" do

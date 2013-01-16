@@ -40,12 +40,13 @@ module Cheetah
     private #####################################################################
 
     # actually sends the request and raises any exceptions
-    def do_post(path, params, initheader = nil)
-      data              = params.map { |a| "#{a[0]}=#{CGI.escape(a[1])}" }
+    def do_post(path, params, initheader = {})
+      data = params.map { |a| "#{a[0]}=#{CGI.escape(a[1])}" }
 
-      http = Curl::Easy.new("https://#{@options[:host]}#{path}")
+      http                 = Curl::Easy.new("https://#{@options[:host]}#{path}")
       http.ssl_verify_peer = false
       http.connect_timeout = 5
+      http.headers         = initheader
 
       http.http_post(data)
 
