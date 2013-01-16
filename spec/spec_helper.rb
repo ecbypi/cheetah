@@ -1,14 +1,10 @@
 require 'cheetah'
-require 'net/http'
+require 'pry'
+require 'webmock/rspec'
+require 'webmock/http_lib_adapters/curb_adapter'
 
-# blocks http requests and throws an exception
-require 'fakeweb'
-FakeWeb.allow_net_connect = false
+Dir[Pathname.new(File.expand_path('../support', __FILE__)).join('**', '*.rb')].each { |f| require f }
 
-# use this to explicitly block http requests.
-# but only use it if you know you should.
-# don't blanket your specs with it.
-def stub_http
-  Net::HTTP.stub(:new).and_return(mock(:http).as_null_object)
+RSpec.configure do |config|
+  config.include RequestStubs
 end
-
