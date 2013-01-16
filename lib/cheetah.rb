@@ -1,7 +1,9 @@
 require 'cheetah/message'
 require 'cheetah/exception'
 require 'cheetah/messenger/messenger'
-Dir["#{File.dirname(__FILE__)}/cheetah/messenger/*.rb"].each {|f| require f}
+require 'cheetah/messenger/synchronous_messenger'
+require 'cheetah/messenger/null_messenger'
+require 'cheetah/messenger/resque_messenger'
 
 module Cheetah
   class Cheetah
