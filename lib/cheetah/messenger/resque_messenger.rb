@@ -1,5 +1,3 @@
-require 'resque'
-
 module Cheetah
   # this is both extends Messenger and implements the Resque worker interface
   class ResqueMessenger < Messenger
