@@ -87,8 +87,6 @@ module Cheetah
       end
     end
 
-    private
-
     def extract_auth_cookie(header_str)
       headers = header_str.split(/\r\n/)
       # Remove line containing status
