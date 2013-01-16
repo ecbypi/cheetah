@@ -9,7 +9,7 @@ describe Cheetah::Cheetah do
       :aid              => "123",
       :whitelist_filter => /@test\.com$/,
       :enable_tracking  => false,
-      :messenger        => Cheetah::NullMessenger,
+      :messenger        => Cheetah::SynchronousMessenger,
     }
     @messenger  = mock(:messenger)
     options[:messenger].stub(:new).and_return(@messenger)

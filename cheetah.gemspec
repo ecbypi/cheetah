@@ -22,7 +22,6 @@ Gem::Specification.new do |s|
   s.add_dependency 'curb'
 
   s.add_development_dependency 'rspec'
-  s.add_development_dependency 'resque'
   s.add_development_dependency 'json'
   s.add_development_dependency 'pry'
   s.add_development_dependency 'webmock'

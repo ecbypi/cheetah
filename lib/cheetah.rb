@@ -2,8 +2,6 @@ require 'cheetah/message'
 require 'cheetah/exception'
 require 'cheetah/messenger/messenger'
 require 'cheetah/messenger/synchronous_messenger'
-require 'cheetah/messenger/null_messenger'
-require 'cheetah/messenger/resque_messenger'
 
 module Cheetah
   class Cheetah
