@@ -69,6 +69,12 @@ describe Cheetah::Messenger do
 
       lambda { generate_messenger.send_message('/', {}) }.should raise_error(CheetahTemporaryException)
     end
+
+    it 'handles non-string params' do
+      stub_request(:post, 'https://foo.com/').with(body: 'aid=123&int5').to_return(status: 200, body: 'err:internal error')
+
+      lambda { generate_messenger.send_message('/', { int: 5 }) }.should_not raise_error NoMethodError
+    end
   end
 
   context 'with :disable_tracking set to true' do

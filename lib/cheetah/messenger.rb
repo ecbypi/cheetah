@@ -54,7 +54,7 @@ module Cheetah
       curl.connect_timeout   = 5
       curl.headers['Cookie'] = @cookie
 
-      body = params.map { |key, value| "#{key}=#{CGI.escape(value)}" }
+      body = params.map { |key, value| "#{key}=#{CGI.escape(value.to_s)}" }
 
       curl.http_post(body)
 
